@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@layer components {
+  .input {
+    @apply border border-gray-300 rounded-md px-4 py-2 w-full;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium cursor-pointer;
+  }
+
+  .file-input {
+    @apply block w-full border border-gray-300 p-2 rounded-md;
+  }
+
+  table th, table td {
+    @apply px-3 py-2;
+  }
+}
+
+.input {
+  @apply w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400;
+}
+
+.btn {
+  @apply px-4 py-2 rounded font-medium transition duration-200 cursor-pointer;
+}
