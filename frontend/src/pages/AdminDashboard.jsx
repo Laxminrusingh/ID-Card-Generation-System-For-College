@@ -1,56 +1,48 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 
-const STATUS_OPTIONS = ['Pending', 'To Be Sent', 'Sent', 'Closed', 'Rejected'];
+const STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected'];
 const PLACEHOLDER_IMG = 'https://via.placeholder.com/60x80?text=No+Image';
 
 const gazettedColumns = [
   { label: 'Sl No', key: 'slno' },
-  { label: 'Employee Name', key: 'employeeName' },
+  { label: 'Application ID', key: 'applicationId' },
+  { label: 'Name', key: 'employeeName' },
   { label: 'Designation', key: 'designation' },
-  { label: 'RUID No.', key: 'ruidNo' },
+  { label: 'Employee ID', key: 'ruidNo' },
   { label: 'DOB', key: 'dob' },
   { label: 'Department', key: 'department' },
-  { label: 'Bill Unit', key: 'billUnit' },
-  { label: 'Station', key: 'station' },
-  { label: 'Residential Address', key: 'residentialAddress' },
-  { label: 'Railway Contact No.', key: 'rlyContactNumber' },
-  { label: 'Mobile Number', key: 'mobileNumber' },
-  { label: 'Reason', key: 'reason' },
-  { label: 'Emergency Contact Name', key: 'emergencyContactName' },
-  { label: 'Emergency Contact Number', key: 'emergencyContactNumber' },
+  { label: 'Contact Number', key: 'mobileNumber' },
+  { label: 'Address', key: 'residentialAddress' },
+  { label: 'Emergency Contact', key: 'emergencyContactName' },
+  { label: 'Emergency Number', key: 'emergencyContactNumber' },
   { label: 'Photo', key: 'photo' },
   { label: 'Signature', key: 'signature' },
-  { label: 'Hindi Name', key: 'hindiName' },
-  { label: 'Hindi Designation', key: 'hindiDesignation' },
-  { label: 'Family Members', key: 'familyMembers' },
   { label: 'Status', key: 'status' },
   { label: 'Actions', key: 'actions' },
 ];
 
 const ngColumns = [
   { label: 'Sl No', key: 'slno' },
+  { label: 'Application ID', key: 'applicationId' },
   { label: 'Name', key: 'name' },
-  { label: 'Designation', key: 'designation' },
-  { label: 'Employee No.', key: 'employeeNo' },
+  { label: 'Course', key: 'course' },
+  { label: 'Registration No.', key: 'registrationNo' },
   { label: 'DOB', key: 'dob' },
   { label: 'Department', key: 'department' },
-  { label: 'Bill Unit', key: 'billUnit' },
-  { label: 'Station', key: 'station' },
-  { label: 'Address', key: 'address' },
-  { label: 'Railway Contact No.', key: 'rlyContact' },
   { label: 'Mobile Number', key: 'mobile' },
-  { label: 'Reason', key: 'reason' },
-  { label: 'Emergency Contact Name', key: 'emergencyName' },
-  { label: 'Emergency Contact Number', key: 'emergencyNumber' },
+  { label: 'Address', key: 'address' },
+  { label: 'Emergency Contact', key: 'emergencyName' },
+  { label: 'Emergency Number', key: 'emergencyNumber' },
   { label: 'Photo', key: 'photo' },
   { label: 'Signature', key: 'signature' },
-  { label: 'Family Members', key: 'familyMembers' },
   { label: 'Status', key: 'status' },
   { label: 'Actions', key: 'actions' },
 ];
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('gazetted');
   const [gazetted, setGazetted] = useState([]);
   const [nonGazetted, setNonGazetted] = useState([]);
@@ -77,6 +69,13 @@ const AdminDashboard = () => {
   const [showSlowLoading, setShowSlowLoading] = useState(false);
 
   useEffect(() => {
+    if (!localStorage.getItem('isLoggedIn')) {
+      navigate('/');
+      return;
+    }
+  }, [navigate]);
+
+  useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError('');
@@ -84,12 +83,14 @@ const AdminDashboard = () => {
         if (tab === 'gazetted') {
           const res = await fetch(`https://icard-railways-ecor.onrender.com/api/gazetted/all?page=${gzPage}&limit=${limit}`);
           const data = await res.json();
+          console.log('Gazetted data received:', data);
           setGazetted(data.data || []);
           setGzPages(data.pages || 1);
           setGzTotal(data.total || 0);
         } else {
           const res = await fetch(`https://icard-railways-ecor.onrender.com/api/ng/all?page=${ngPage}&limit=${limit}`);
           const data = await res.json();
+          console.log('NonGazetted data received:', data);
           setNonGazetted(data.data || []);
           setNgPages(data.pages || 1);
           setNgTotal(data.total || 0);
@@ -112,8 +113,37 @@ const AdminDashboard = () => {
     return () => clearTimeout(slowTimeout);
   }, [loading]);
 
+  const handleDelete = async (type, applicationId) => {
+    if (!confirm('Are you sure you want to delete this application?')) return;
+    try {
+      const url = type === 'gazetted'
+        ? `https://icard-railways-ecor.onrender.com/api/gazetted/${applicationId}`
+        : `https://icard-railways-ecor.onrender.com/api/ng/${applicationId}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+      if (type === 'gazetted') {
+        setGazetted(gazetted => gazetted.filter(app => app.applicationId !== applicationId));
+        setGzTotal(prev => prev - 1);
+      } else {
+        setNonGazetted(nonGazetted => nonGazetted.filter(app => app.applicationId !== applicationId));
+        setNgTotal(prev => prev - 1);
+      }
+      alert('Application deleted successfully!');
+    } catch (err) {
+      alert('Delete failed!');
+    }
+  };
+
   const handleStatusChange = async (type, applicationId, newStatus) => {
     setStatusUpdatingId(applicationId);
+    let remark = '';
+    if (newStatus === 'Rejected') {
+      remark = prompt('Please enter rejection reason:');
+      if (!remark) {
+        setStatusUpdatingId(null);
+        return;
+      }
+    }
     try {
       const url = type === 'gazetted'
         ? 'https://icard-railways-ecor.onrender.com/api/gazetted/update-status'
@@ -121,13 +151,17 @@ const AdminDashboard = () => {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId, status: newStatus }),
+        body: JSON.stringify({ applicationId, status: newStatus, remark }),
       });
       if (!res.ok) throw new Error('Failed to update status');
       if (type === 'gazetted') {
-        setGazetted(gazetted => gazetted.map(app => app.applicationId === applicationId ? { ...app, status: newStatus } : app));
+        setGazetted(gazetted => gazetted.map(app => 
+          app.applicationId === applicationId ? { ...app, status: newStatus, remark } : app
+        ));
       } else {
-        setNonGazetted(nonGazetted => nonGazetted.map(app => app.applicationId === applicationId ? { ...app, status: newStatus } : app));
+        setNonGazetted(nonGazetted => nonGazetted.map(app => 
+          app.applicationId === applicationId ? { ...app, status: newStatus, remark } : app
+        ));
       }
       setStatusSuccessId(applicationId);
       setTimeout(() => setStatusSuccessId(null), 1500);
@@ -155,8 +189,8 @@ const AdminDashboard = () => {
   const handleExport = (data, type) => {
     const exportData = data.map((app, i) => ({
       'Sl No': i + 1,
-      'EMPNO': app.employeeNo || app.ruidNo || '',
-      'EMPNAME': app.employeeName || app.name || '',
+      'EMPNO': type === 'gazetted' ? app.ruidNo : app.registrationNo || '',
+      'EMPNAME': type === 'gazetted' ? app.employeeName : app.name || '',
       'DESIGNATION': app.designation || '',
       'DOB': app.dob || '',
       'DEPARTMENT': app.department || '',
@@ -210,248 +244,209 @@ const AdminDashboard = () => {
     const columns = type === 'gazetted' ? gazettedColumns : ngColumns;
     return (
       <div className="overflow-x-auto">
-        <div className="flex gap-2 mb-2">
+        <div className="flex flex-col md:flex-row gap-2 mb-4">
           <input
             type="text"
             placeholder="Search..."
-            className="input w-60"
+            className="px-3 py-2 border rounded w-full md:w-60"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           <select
-            className="input w-48"
+            className="px-3 py-2 border rounded w-full md:w-48"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
             <option value="">All Status</option>
             {STATUS_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
           </select>
-          <button className="btn bg-green-600 text-white" onClick={() => handleExport(filtered, type)}>Export Excel</button>
-          <button className="btn bg-blue-600 text-white" onClick={handlePrint}>Print</button>
+          <div className="flex gap-2">
+            <button className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700" onClick={() => handleExport(filtered, type)}>Export</button>
+            <button className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700" onClick={handlePrint}>Print</button>
+          </div>
         </div>
-        <table className="min-w-full bg-white border rounded-lg shadow print:text-xs print:min-w-0" ref={tableRef}>
-          <thead className="bg-blue-100">
+        <table className="min-w-full bg-white border rounded-lg shadow text-xs md:text-sm">
+          <thead className="bg-gray-50">
             <tr>
-              {columns.map(col => (
-                <th key={col.key} className="px-2 py-1 whitespace-nowrap">{col.label}</th>
+              {columns.filter(col => col.key !== 'actions').map(col => (
+                <th key={col.key} className="px-1 md:px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  {col.label}
+                </th>
               ))}
+              <th className="px-1 md:px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase print:hidden">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {filtered.map((app, idx) => (
-              <tr key={app.applicationId} className="border-t hover:bg-blue-50 transition print:border-none">
-                {columns.map(col => {
-                  if (col.key === 'slno') return <td key={col.key}>{idx + 1}</td>;
-                  if (col.key === 'photo') return <td key={col.key}><img src={`https://icard-railways-ecor.onrender.com/api/${type === 'gazetted' ? 'gazetted' : 'ng'}/photo/${app._id}`} alt="Photo" className="w-12 h-16 object-cover rounded border" onError={e => { e.target.src = PLACEHOLDER_IMG; }} /></td>;
-                  if (col.key === 'signature') return <td key={col.key}><img src={`https://icard-railways-ecor.onrender.com/api/${type === 'gazetted' ? 'gazetted' : 'ng'}/signature/${app._id}`} alt="Signature" className="w-16 h-8 object-contain border" onError={e => { e.target.src = PLACEHOLDER_IMG; }} /></td>;
-                  if (col.key === 'familyMembers') {
-                    if (Array.isArray(app.familyMembers) && app.familyMembers.length > 0) {
-                      return <td key={col.key}><ul className="text-xs">{app.familyMembers.map((fm, i) => <li key={i}>{Object.values(fm).join(', ')}</li>)}</ul></td>;
-                    } else {
-                      return <td key={col.key}>-</td>;
-                    }
-                  }
-                  if (col.key === 'status') {
-                    return (
-                      <td key={col.key} className="flex items-center gap-2">
-                        <select
-                          className="input bg-white border border-gray-300 rounded"
-                          value={rowStatus[app.applicationId] ?? app.status}
-                          onChange={e => setRowStatus(s => ({ ...s, [app.applicationId]: e.target.value }))}
-                        >
-                          {STATUS_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
-                        </select>
-                        <button
-                          className={`btn bg-emerald-600 text-white text-xs ${statusUpdatingId === app.applicationId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          disabled={statusUpdatingId === app.applicationId}
-                          onClick={() => handleStatusChange(type, app.applicationId, rowStatus[app.applicationId] ?? app.status)}
-                        >Change Status</button>
-                        {statusSuccessId === app.applicationId && <span className="text-green-600 text-xs ml-2">Updated!</span>}
-                      </td>
-                    );
-                  }
-                  if (col.key === 'actions') {
-                    return <td key={col.key} className="flex gap-2">
-                      <button className="btn bg-blue-600 hover:bg-blue-700 text-white text-xs" onClick={() => openModal(app)}>View</button>
-                      <button className="btn bg-green-600 hover:bg-green-700 text-white text-xs" onClick={() => handleDownloadCard(app)}>Download I-Card</button>
-                      <button className="btn bg-red-600 hover:bg-red-700 text-white text-xs" onClick={() => handleDelete(type, app.applicationId)}>Delete</button>
-                    </td>;
-                  }
-                  return <td key={col.key}>{app[col.key] || '-'}</td>;
-                })}
+          <tbody className="divide-y divide-gray-200">
+            {filtered.map((app, i) => (
+              <tr key={app.applicationId || i} className="hover:bg-gray-50">
+                <td className="px-1 md:px-2 py-2 text-xs md:text-sm">{i + 1}</td>
+                <td className="px-1 md:px-2 py-2 text-xs md:text-sm font-mono text-blue-600">{app.applicationId}</td>
+                <td className="px-1 md:px-2 py-2 text-xs md:text-sm">{type === 'gazetted' ? app.employeeName : app.name}</td>
+                <td className="px-1 md:px-2 py-2 text-xs md:text-sm">{type === 'gazetted' ? app.designation : app.course}</td>
+                <td className="px-1 md:px-2 py-2 text-xs md:text-sm">{type === 'gazetted' ? app.ruidNo : app.registrationNo}</td>
+                <td className="px-2 py-2 text-sm">{app.dob}</td>
+                <td className="px-2 py-2 text-sm">{app.department}</td>
+                <td className="px-2 py-2 text-sm">{type === 'gazetted' ? app.mobileNumber : app.mobile}</td>
+                <td className="px-2 py-2 text-sm max-w-xs truncate">{type === 'gazetted' ? app.residentialAddress : app.address}</td>
+                <td className="px-2 py-2 text-sm">{type === 'gazetted' ? app.emergencyContactName : app.emergencyName}</td>
+                <td className="px-2 py-2 text-sm">{type === 'gazetted' ? app.emergencyContactNumber : app.emergencyNumber}</td>
+                <td className="px-2 py-2">
+                  {app._id && app.photo ? (
+                    <img 
+                      src={`https://icard-railways-ecor.onrender.com/api/${type === 'gazetted' ? 'gazetted' : 'ng'}/photo/${app._id}`} 
+                      alt="Photo" 
+                      className="w-12 h-16 object-cover rounded" 
+                      onError={e => e.target.src = PLACEHOLDER_IMG} 
+                    />
+                  ) : (
+                    <img src={PLACEHOLDER_IMG} alt="No Photo" className="w-12 h-16 object-cover rounded" />
+                  )}
+                </td>
+                <td className="px-2 py-2">
+                  {app._id && app.signature ? (
+                    <img 
+                      src={`https://icard-railways-ecor.onrender.com/api/${type === 'gazetted' ? 'gazetted' : 'ng'}/signature/${app._id}`} 
+                      alt="Signature" 
+                      className="w-16 h-8 object-cover rounded" 
+                      onError={e => e.target.src = PLACEHOLDER_IMG} 
+                    />
+                  ) : (
+                    <img src={PLACEHOLDER_IMG} alt="No Signature" className="w-16 h-8 object-cover rounded" />
+                  )}
+                </td>
+
+                <td className="px-2 py-2">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    app.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                    app.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                    app.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {statusSuccessId === app.applicationId ? '✓ Updated' : app.status}
+                  </span>
+                </td>
+                <td className="px-2 py-2 print:hidden">
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="text-xs border rounded px-2 py-1 w-32"
+                      value={app.status}
+                      onChange={e => handleStatusChange(type, app.applicationId, e.target.value)}
+                      disabled={statusUpdatingId === app.applicationId}
+                    >
+                      {STATUS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                      <button
+                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                        onClick={() => handleDelete(type, app.applicationId)}
+                      >
+                        Delete
+                      </button>
+                      {app.status === 'Rejected' && app.remark && (
+                        <span className="text-xs text-red-600 ml-2" title={app.remark}>
+                          Reason: {app.remark}
+                        </span>
+                      )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <div className="text-center text-gray-500 py-8">No applications found.</div>}
-        {type === 'gazetted'
-          ? renderPagination(gzPage, setGzPage, gzPages)
-          : renderPagination(ngPage, setNgPage, ngPages)}
       </div>
     );
   };
 
-  const handleDownloadCard = (app) => {
-    setCardData(app);
-    setShowCardModal(true);
+  const logout = () => {
+    localStorage.removeItem('isLoggedIn');
+    navigate('/');
   };
 
-  const handlePrintCard = () => {
-    window.print();
-  };
-
-  const handleDelete = async (type, applicationId) => {
-    if (!window.confirm('Are you sure you want to delete this application?')) return;
-    try {
-      const url = type === 'gazetted'
-        ? `https://icard-railways-ecor.onrender.com/api/gazetted/${applicationId}`
-        : `https://icard-railways-ecor.onrender.com/api/ng/${applicationId}`;
-      const res = await fetch(url, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete application');
-      if (type === 'gazetted') {
-        setGazetted(gazetted => gazetted.filter(app => app.applicationId !== applicationId));
-      } else {
-        setNonGazetted(nonGazetted => nonGazetted.filter(app => app.applicationId !== applicationId));
-      }
-    } catch (err) {
-      alert('Delete failed!');
-    }
-  };
+  if (!localStorage.getItem('isLoggedIn')) {
+    return null;
+  }
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gray-50 py-10">
-      <div className="bg-blue-100 shadow-lg rounded-xl px-8 py-6 w-full max-w-7xl mt-10">
-        <h1 className="text-3xl font-bold text-center text-emerald-700 mb-2">Admin Dashboard</h1>
-        <div className="flex justify-center gap-4 mb-6">
-          <button
-            className={`btn ${tab === 'gazetted' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            onClick={() => setTab('gazetted')}
-          >Gazetted</button>
-          <button
-            className={`btn ${tab === 'non-gazetted' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-            onClick={() => setTab('non-gazetted')}
-          >Non-Gazetted</button>
-        </div>
-        {loading ? (
-          <div className="text-center py-10 text-lg text-gray-500">
-            Loading applications...<br />
-            {showSlowLoading && <span className="text-orange-600">Server is waking up or slow, please wait...</span>}
-          </div>
-        ) : error ? (
-          <div className="text-center py-10 text-red-600">{error}</div>
-        ) : (
-          <div>
-            {tab === 'gazetted' ? renderTable(gazetted, 'gazetted') : renderTable(nonGazetted, 'non-gazetted')}
-          </div>
-        )}
+    <div className="p-2 md:p-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 md:mb-6 gap-2">
+        <h1 className="text-xl md:text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+        <button onClick={logout} className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm md:text-base">
+          Logout
+        </button>
       </div>
-      {/* Modal for application details */}
-      {showModal && modalData && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-blue-100 rounded-2xl shadow-2xl p-8 max-w-2xl w-full border-2 border-blue-600 relative animate-fadeIn">
-            <button className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold" onClick={closeModal}>&times;</button>
-            <h2 className="text-2xl font-extrabold text-blue-700 mb-2 text-center tracking-wide">Application Details</h2>
-            <div className="bg-gray-100 rounded-lg p-4 max-h-96 overflow-y-auto border border-gray-200">
-              {/* Show main fields */}
-              <div className="mb-2"><b>Status:</b> {modalData.status}</div>
-              <div className="mb-2"><b>Name:</b> {modalData.employeeName || modalData.name}</div>
-              <div className="mb-2"><b>Application ID:</b> {modalData.applicationId}</div>
-              {/* Show image if available */}
-              {modalData._id && (
-                <div className="mb-2 flex gap-4 items-center">
-                  {modalData.photo && (
-                    <img src={`https://icard-railways-ecor.onrender.com/api/${tab === 'gazetted' ? 'gazetted' : 'ng'}/photo/${modalData._id}`} alt="Photo" style={{ width: 80, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #ccc' }} />
-                  )}
-                  {modalData.signature && (
-                    <img src={`https://icard-railways-ecor.onrender.com/api/${tab === 'gazetted' ? 'gazetted' : 'ng'}/signature/${modalData._id}`} alt="Signature" style={{ width: 100, height: 40, objectFit: 'contain', borderRadius: 8, border: '1px solid #ccc' }} />
-                  )}
-                </div>
-              )}
-              {/* Show rest of the fields except photo/signature as JSON */}
-              <pre className="whitespace-pre-wrap break-words text-xs text-gray-800 font-mono">
-                {JSON.stringify((({ photo, signature, ...rest }) => rest)(modalData), null, 2)}
-              </pre>
-            </div>
-            <button className="mt-6 w-full btn bg-blue-600 hover:bg-blue-700 text-white shadow-lg text-lg" onClick={closeModal}>Close</button>
-          </div>
+
+      {loading && (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2">Loading applications...</p>
+          {showSlowLoading && <p className="text-sm text-gray-600">This is taking longer than usual...</p>}
         </div>
       )}
-      {/* Modal for I-Card download/print */}
-      {showCardModal && cardData && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-blue-100 rounded-2xl shadow-2xl p-8 max-w-xl w-full border-2 border-blue-600 relative animate-fadeIn">
-            <button className="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-2xl font-bold" onClick={closeModal}>&times;</button>
-            <h2 className="text-3xl font-extrabold text-blue-700 mb-2 text-center tracking-wide">I-Card Preview</h2>
-            <div id="id-card-preview" className="bg-white p-4 rounded-lg w-[380px] border border-gray-300 flex flex-col items-center print:shadow-none print:rounded-none print:border print:bg-white">
-              {/* Logo and Railway Name */}
-              <div className="flex flex-col items-center mb-2">
-                <img src="/raillogo.png" alt="Railway Logo" className="h-12 mb-1" />
-                <div className="text-2xl font-bold text-center leading-tight text-gray-900">पूर्व तट रेलवे<br/>East Coast Railway</div>
-              </div>
-              {/* Header Row */}
-              <div className="flex flex-row w-full text-xs font-semibold text-white mb-2">
-                <div className="flex-1 bg-cyan-700 py-1 px-2 text-center rounded-l">पहचान पत्र<br/>IDENTITY CARD</div>
-                <div className="flex-1 bg-cyan-800 py-1 px-2 text-center">DEPARTMENT</div>
-                <div className="flex-1 bg-cyan-700 py-1 px-2 text-center rounded-r">व्यावसायिक<br/>COMMERCIAL</div>
-              </div>
-              {/* Main Row: Photo, Details, Signature */}
-              <div className="flex flex-row w-full items-center mb-2">
-                {/* Photo */}
-                <div className="flex flex-col items-center mr-2">
-                  <img src={`https://icard-railways-ecor.onrender.com/api/${tab === 'gazetted' ? 'gazetted' : 'ng'}/photo/${cardData._id}`} alt="Photo" className="w-[90px] h-[110px] object-cover border border-gray-400 bg-gray-100" onError={e => { e.target.src = PLACEHOLDER_IMG; }} />
-                </div>
-                {/* Details Table */}
-                <div className="flex-1 flex flex-col justify-center px-2">
-                  <table className="text-[13px] w-full">
-                    <tbody>
-                      <tr><td className="pr-2 font-bold text-gray-700">नाम</td><td className="text-gray-700">: <b>{cardData.employeeName || cardData.name || '-'}</b></td></tr>
-                      <tr><td className="pr-2 font-bold text-gray-700">पद नाम</td><td className="text-gray-700">: <b>{cardData.designation || '-'}</b></td></tr>
-                      <tr><td className="pr-2 font-bold text-gray-700">पी.एफ.नं</td><td className="text-gray-700">: <b>{cardData.ruidNo || cardData.employeeNo || '-'}</b></td></tr>
-                      <tr><td className="pr-2 font-bold text-gray-700">स्टेशन</td><td className="text-gray-700">: <b>{cardData.station || '-'}</b></td></tr>
-                      <tr><td className="pr-2 font-bold text-gray-700">जन्म तिथि</td><td className="text-gray-700">: <b>{cardData.dob || '-'}</b></td></tr>
-                      <tr><td className="pr-2 font-bold text-gray-700">DEPARTMENT</td><td className="text-gray-700">: <b>{cardData.department || '-'}</b></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                {/* Signature */}
-                <div className="flex flex-col items-center ml-2">
-                  <img src={`https://icard-railways-ecor.onrender.com/api/${tab === 'gazetted' ? 'gazetted' : 'ng'}/signature/${cardData._id}`} alt="Signature" className="w-[90px] h-[40px] object-contain border border-gray-400 bg-gray-100" onError={e => { e.target.src = PLACEHOLDER_IMG; }} />
-                  <span className="text-[10px] mt-1 text-gray-600">प्रमाणित प्राधिकारी का हस्ताक्षर<br/>Signature of Issuing Authority</span>
-                </div>
-              </div>
-              {/* Family Details */}
-              <div className="w-full border-t border-gray-200 pt-2 mt-2">
-                <div className="font-bold text-center mb-1 text-gray-700 text-[14px]">परिवार का विवरण/Details of the family</div>
-                {Array.isArray(cardData.familyMembers) && cardData.familyMembers.length > 0 ? (
-                  <table className="w-full text-xs mt-1 border">
-                    <thead>
-                      <tr className="bg-gray-200">
-                        <th>Name</th><th>Relation</th><th>DOB</th><th>BG</th><th>Identification</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cardData.familyMembers.map((fm, i) => (
-                        <tr key={i}>
-                          <td>{fm.name}</td>
-                          <td>{fm.relationship}</td>
-                          <td>{fm.dob}</td>
-                          <td>{fm.bloodGroup}</td>
-                          <td>{fm.identificationMark || fm.identification}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : <div className="text-center text-xs">No family details</div>}
-                {/* Emergency Contact and Address */}
-                <div className="mt-2 font-bold text-gray-700 text-xs">Emergency Contact No. : <span className="font-mono">{cardData.emergencyContactNumber || cardData.emergencyNumber || '-'}</span></div>
-                <div className="text-gray-700 text-xs">घर का पता/Res.Address: {cardData.residentialAddress || cardData.address || '-'}</div>
-                {/* Lost & Found Message */}
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-[10px] text-gray-500">यदि यह कार्ड मिले तो कृपया निकटतम पोस्ट बॉक्स में डाल दें।<br/>If found please drop it in the nearest Post Box</span>
-                </div>
-              </div>
+
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b">
+          <nav className="flex flex-col md:flex-row md:space-x-8">
+            <button
+              className={`py-3 px-4 md:py-4 md:px-6 border-b-2 font-medium text-xs md:text-sm ${
+                tab === 'gazetted'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setTab('gazetted')}
+            >
+              Faculty Applications ({gzTotal})
+            </button>
+            <button
+              className={`py-3 px-4 md:py-4 md:px-6 border-b-2 font-medium text-xs md:text-sm ${
+                tab === 'non-gazetted'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+              onClick={() => setTab('non-gazetted')}
+            >
+              Student Applications ({ngTotal})
+            </button>
+          </nav>
+        </div>
+
+        <div className="p-2 md:p-6">
+          {tab === 'gazetted' ? (
+            <>
+              {renderTable(gazetted, 'gazetted')}
+              {renderPagination(gzPage, setGzPage, gzPages)}
+            </>
+          ) : (
+            <>
+              {renderTable(nonGazetted, 'non-gazetted')}
+              {renderPagination(ngPage, setNgPage, ngPages)}
+            </>
+          )}
+        </div>
+      </div>
+
+      {showModal && modalData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Family Members</h3>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
             </div>
-            <button className="mt-6 w-full btn bg-blue-600 hover:bg-blue-700 text-white shadow-lg text-lg print:hidden" onClick={handlePrintCard}>Print / Download</button>
+            {modalData.familyMembers && modalData.familyMembers.length > 0 ? (
+              <div className="space-y-4">
+                {modalData.familyMembers.map((member, i) => (
+                  <div key={i} className="border rounded p-3">
+                    <p><strong>Name:</strong> {member.name}</p>
+                    <p><strong>Relation:</strong> {member.relation}</p>
+                    <p><strong>DOB:</strong> {member.dob}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No family members added.</p>
+            )}
           </div>
         </div>
       )}
@@ -459,4 +454,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;

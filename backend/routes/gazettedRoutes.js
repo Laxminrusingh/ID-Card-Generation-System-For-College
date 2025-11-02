@@ -18,15 +18,23 @@ router.post('/register', upload.fields([
   const { body, files } = req;
 
   try {
-    // Generate unique applicationId
-    const applicationId = 'GZ' + Date.now() + Math.floor(Math.random() * 1000);
+    // Generate unique applicationId for Faculty
+    const applicationId = 'FAC-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
     // Log for debugging
     console.log('Received Gazetted body:', body);
     console.log('Received Gazetted files:', files);
-    // Save to database
-    const newApp = new Gazetted({
-      ...body,
+    // Map frontend fields to backend model fields
+    const mappedData = {
       applicationId,
+      employeeName: body.name,
+      designation: body.designation,
+      ruidNo: body.employeeId,
+      dob: body.dateOfBirth,
+      department: body.department,
+      residentialAddress: body.address,
+      mobileNumber: body.contactNumber,
+      emergencyContactName: body.emergencyContactName,
+      emergencyContactNumber: body.emergencyContactNumber,
       status: 'Pending',
       photo: files.photo ? {
         data: files.photo[0].buffer,
@@ -36,11 +44,21 @@ router.post('/register', upload.fields([
         data: files.signature[0].buffer,
         contentType: files.signature[0].mimetype
       } : undefined,
-      hindiName: files.hindiName ? files.hindiName[0].filename : '',
-      hindiDesignation: files.hindiDesignation ? files.hindiDesignation[0].filename : '',
       familyMembers: body.familyMembers ? JSON.parse(body.familyMembers) : [],
-    });
+    };
+
+    // Save to database
+    const newApp = new Gazetted(mappedData);
     await newApp.save();
+    console.log('Saved Gazetted application:', { 
+      applicationId: newApp.applicationId, 
+      employeeName: newApp.employeeName,
+      ruidNo: newApp.ruidNo,
+      dob: newApp.dob, 
+      mobileNumber: newApp.mobileNumber,
+      residentialAddress: newApp.residentialAddress,
+      status: newApp.status 
+    });
 
     // TODO: Save other fields and files if needed
 

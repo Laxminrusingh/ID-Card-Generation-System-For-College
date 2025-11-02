@@ -51,8 +51,8 @@ const StudentIDForm = () => {
         data.append(key, studentData[key]);
       }
 
-      // Replace with your backend endpoint:
-      const response = await fetch("http://localhost:5000/api/ng/register", {
+      // Backend endpoint:
+      const response = await fetch("https://icard-railways-ecor.onrender.com/api/ng/register", {
         method: "POST",
         body: data,
       });
@@ -63,8 +63,14 @@ const StudentIDForm = () => {
         setApplicationId(result.applicationId || "STU-" + Date.now());
         setSubmittedData(studentData);
         setShowModal(true);
+        // Reset form
+        setStudentData({
+          name: "", registrationNo: "", dob: "", gender: "", bloodGroup: "",
+          course: "", department: "", year: "", section: "", phone: "", email: "",
+          address: "", guardianName: "", guardianContact: "", photo: null, signature: null,
+        });
       } else {
-        alert(`Error: ${result.message}`);
+        alert(`Submission Error: ${result.message || 'Please try again'}`);
       }
     } catch (error) {
       console.error("Submission error:", error);
@@ -76,10 +82,10 @@ const StudentIDForm = () => {
     <>
       <form
         onSubmit={handleSubmit}
-        className="p-6 bg-white shadow-md rounded-xl space-y-6 max-w-5xl mx-auto"
+        className="p-4 md:p-6 bg-white shadow-md rounded-xl space-y-4 md:space-y-6 max-w-5xl mx-auto"
       >
-        <h2 className="text-2xl font-bold text-blue-800 text-center">
-          College Student ID Card Application Form
+        <h2 className="text-xl md:text-2xl font-bold text-blue-800 text-center">
+          Student ID Card Application
         </h2>
 
         {/* Student Details */}
@@ -259,13 +265,16 @@ const StudentIDForm = () => {
             >
               &times;
             </button>
-            <h2 className="text-3xl font-extrabold text-blue-700 mb-2 text-center">
-              Application Submitted!
+            <h2 className="text-3xl font-extrabold text-green-700 mb-4 text-center">
+              ✅ Application Submitted Successfully!
             </h2>
-            <p className="text-center text-gray-600">
-              Your Application ID:{" "}
-              <span className="text-green-700 font-mono">{applicationId}</span>
-            </p>
+            <div className="text-center mb-4">
+              <p className="text-gray-600 mb-2">Your Application ID:</p>
+              <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3">
+                <span className="text-green-700 font-mono text-lg font-bold">{applicationId}</span>
+                <p className="text-sm text-gray-600 mt-1">Please save this ID to check your status</p>
+              </div>
+            </div>
 
             <div className="bg-gray-100 rounded-lg p-4 mt-4 max-h-64 overflow-y-auto border border-gray-200">
               <pre className="whitespace-pre-wrap break-words text-xs text-gray-800 font-mono">

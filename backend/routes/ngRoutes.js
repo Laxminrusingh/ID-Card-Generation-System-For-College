@@ -17,12 +17,22 @@ router.post('/register', upload.fields([
   const { body, files } = req;
 
   try {
-    // Generate unique applicationId
-    const applicationId = 'NG' + Date.now() + Math.floor(Math.random() * 1000);
-    // Save to database
-    const newApp = new NonGazetted({
-      ...body,
+    // Generate unique applicationId for Student
+    const applicationId = 'STU-' + Date.now().toString().slice(-8) + Math.floor(Math.random() * 100);
+    console.log('Received NonGazetted body:', body);
+    console.log('Received NonGazetted files:', files);
+    // Map frontend fields to backend model fields
+    const mappedData = {
       applicationId,
+      name: body.name,
+      registrationNo: body.registrationNo,
+      dob: body.dob,
+      course: body.course,
+      department: body.department,
+      mobile: body.phone,
+      address: body.address,
+      emergencyName: body.guardianName,
+      emergencyNumber: body.guardianContact,
       status: 'Pending',
       photo: files.photo ? {
         data: files.photo[0].buffer,
@@ -33,8 +43,12 @@ router.post('/register', upload.fields([
         contentType: files.signature[0].mimetype
       } : undefined,
       familyMembers: body.familyMembers ? JSON.parse(body.familyMembers) : [],
-    });
+    };
+
+    // Save to database
+    const newApp = new NonGazetted(mappedData);
     await newApp.save();
+    console.log('Saved NonGazetted application:', { applicationId: newApp.applicationId, dob: newApp.dob });
 
     res.status(200).json({ message: 'Employee registered successfully', applicationId });
   } catch (error) {

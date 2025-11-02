@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 
 const FacultyIdForm = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    employeeName: '',
     designation: '',
     department: '',
-    employeeId: '',
-    dateOfJoining: '',
+    ruidNo: '',
+    dob: '',
     qualification: '',
     email: '',
-    contactNumber: '',
-    address: '',
+    mobileNumber: '',
+    residentialAddress: '',
     bloodGroup: '',
     emergencyContactName: '',
     emergencyContactNumber: '',
@@ -25,6 +25,7 @@ const FacultyIdForm = () => {
   const departments = [
     "Computer Science",
     "Electronics and Communication",
+    "Electrican and Coumputer Engineering",
     "Electrical Engineering",
     "Mechanical Engineering",
     "Civil Engineering",
@@ -53,8 +54,8 @@ const FacultyIdForm = () => {
         data.append(key, formData[key]);
       }
 
-      // 🔹 Replace this URL with your backend API endpoint
-      const response = await fetch('http://localhost:5000/api/gazetted/register', {
+      // Backend API endpoint
+      const response = await fetch('https://icard-railways-ecor.onrender.com/api/gazetted/register', {
         method: 'POST',
         body: data,
       });
@@ -65,8 +66,14 @@ const FacultyIdForm = () => {
         setApplicationId(result.applicationId || 'FAC-' + Date.now());
         setSubmittedData(formData);
         setShowModal(true);
+        // Reset form
+        setFormData({
+          employeeName: '', designation: '', department: '', ruidNo: '', dob: '',
+          qualification: '', email: '', mobileNumber: '', residentialAddress: '', bloodGroup: '',
+          emergencyContactName: '', emergencyContactNumber: '', photo: null, signature: null,
+        });
       } else {
-        alert(`Error: ${result.message}`);
+        alert(`Submission Error: ${result.message || 'Please try again'}`);
       }
     } catch (error) {
       console.error("Submission error:", error);
@@ -81,19 +88,19 @@ const FacultyIdForm = () => {
 
         {/* Faculty Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input name="name" value={formData.name} onChange={handleChange} placeholder="Full Name *" className="input" />
+          <input name="employeeName" value={formData.employeeName} onChange={handleChange} placeholder="Full Name *" className="input" />
           <input name="designation" value={formData.designation} onChange={handleChange} placeholder="Designation *" className="input" />
           <select name="department" value={formData.department} onChange={handleChange} className="input">
             <option value="">[Select Department]</option>
             {departments.map(dep => <option key={dep}>{dep}</option>)}
           </select>
-          <input name="employeeId" value={formData.employeeId} onChange={handleChange} placeholder="Employee ID *" className="input" />
-          <input type="date" name="dateOfJoining" value={formData.dateOfJoining} onChange={handleChange} className="input" />
+          <input name="ruidNo" value={formData.ruidNo} onChange={handleChange} placeholder="Employee ID (RUID) *" className="input" />
+          <input type="date" name="dob" value={formData.dob} onChange={handleChange} placeholder="Date of Birth *" className="input" />
           <input name="qualification" value={formData.qualification} onChange={handleChange} placeholder="Highest Qualification *" className="input" />
           <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email *" className="input" />
-          <input name="contactNumber" value={formData.contactNumber} onChange={handleChange} placeholder="Contact Number *" className="input" />
+          <input name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} placeholder="Contact Number *" className="input" />
           <input name="bloodGroup" value={formData.bloodGroup} onChange={handleChange} placeholder="Blood Group *" className="input" />
-          <textarea name="address" value={formData.address} onChange={handleChange} placeholder="Residential Address *" className="input md:col-span-2" />
+          <textarea name="residentialAddress" value={formData.residentialAddress} onChange={handleChange} placeholder="Residential Address *" className="input md:col-span-2" />
         </div>
 
         {/* Emergency Details */}
@@ -125,9 +132,14 @@ const FacultyIdForm = () => {
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full">
-            <h2 className="text-2xl font-bold text-green-700 mb-4 text-center">Application Submitted!</h2>
-            <p className="text-center mb-2">Your Application ID:</p>
-            <p className="text-center font-mono text-lg bg-green-50 border border-green-300 rounded-lg py-1 px-3 mb-4">{applicationId}</p>
+            <h2 className="text-2xl font-bold text-green-700 mb-4 text-center">✅ Application Submitted Successfully!</h2>
+            <div className="text-center mb-4">
+              <p className="text-gray-600 mb-2">Your Application ID:</p>
+              <div className="bg-green-50 border-2 border-green-300 rounded-lg p-3">
+                <span className="text-green-700 font-mono text-lg font-bold">{applicationId}</span>
+                <p className="text-sm text-gray-600 mt-1">Please save this ID to check your status</p>
+              </div>
+            </div>
             <pre className="bg-gray-100 p-3 rounded-lg text-xs text-gray-800 max-h-60 overflow-y-auto">{JSON.stringify(formData, null, 2)}</pre>
             <button onClick={() => setShowModal(false)} className="mt-4 w-full btn bg-blue-600 hover:bg-blue-700 text-white">Close</button>
           </div>

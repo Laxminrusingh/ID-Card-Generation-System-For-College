@@ -33,6 +33,7 @@ const nonGazettedSchema = new mongoose.Schema({
     }
   ],
   status: { type: String, default: 'Pending' },
+  remark: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

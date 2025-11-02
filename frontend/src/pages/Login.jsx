@@ -12,6 +12,14 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    
+    // Default admin bypass
+    if (userId === 'laxminrusingh8@gmail.com' && password === 'Laxmi@123') {
+      localStorage.setItem('isLoggedIn', 'true');
+      navigate('/admin');
+      return;
+    }
+    
     try {
       const res = await fetch('https://icard-railways-ecor.onrender.com/api/user/login', {
         method: 'POST',
@@ -31,9 +39,9 @@ const Login = () => {
   };
 
   return (
-    <motion.div className="flex items-center justify-center h-screen bg-gray-100 mt-12 overflow-hidden ">
-      <form className="bg-blue-100 shadow-lg rounded-xl px-6 py-6 w-full max-w-sm" onSubmit={handleSubmit}>
-        <h2 className="text-2xl font-bold text-center text-green-700 mb-6">
+    <motion.div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <form className="bg-blue-100 shadow-lg rounded-xl px-6 py-6 w-full max-w-sm mx-auto" onSubmit={handleSubmit}>
+        <h2 className="text-xl md:text-2xl font-bold text-center text-green-700 mb-6">
           Admin Login
         </h2>
 
@@ -58,7 +66,7 @@ const Login = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             type="submit"
-            className="mt-4 bg-emerald-600 text-white py-2 rounded-md hover:bg-emerald-700 transition duration-200"
+            className="mt-4 bg-emerald-600 text-white py-2 rounded-md hover:bg-emerald-700 transition duration-200 cursor-pointer"
           >
             Login
           </motion.button>
@@ -66,7 +74,7 @@ const Login = () => {
         <img src={backgroundImg} alt="Background" className="mt-4 rounded-md object-cover w-full h-40" />
         {error && <div className="text-red-600 mt-4 text-center">{error}</div>}
         <div className="mt-4 text-center">
-          New user or admin? <Link to="/signup" className="text-blue-600 hover:underline">Create an account</Link>
+          New user? <Link to="/signup" className="text-blue-600 hover:underline">Create an account</Link>
         </div>
       </form>
     </motion.div>
